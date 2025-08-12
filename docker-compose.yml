@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # This section defines the Neo4j Database container
+  neo4j:
+    # Use the official Neo4j image from Docker Hub
+    image: neo4j:4.4
+
+    # Give the container a friendly, predictable name
+    container_name: neo4j_database_for_agent
+
+    # Map the container's ports to your local machine (localhost)
+    ports:
+      - "7474:7474"  # For the Neo4j Browser interface
+      - "7687:7687"  # For the Bolt protocol (how your Python app will connect)
+
+    # Persist the database data on your local machine
+    volumes:
+      - neo4j_data:/data
+
+    # Set the required environment variables
+    environment:
+      # Set your custom username and password here
+      - NEO4J_AUTH=debajyoti2004/932004
+      
+      # Automatically accept the license agreement to allow startup
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
