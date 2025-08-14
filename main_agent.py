@@ -18,10 +18,10 @@ from facebook_api import FacebookAPI
 from instagram_api import InstagramAPI
 from website_manager import WebsiteManager
 from whatsapp_api import WhatsAppAPI
+from chroma_manager import ChromaDBManager
 from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
 from elevenlabs.client import ElevenLabs
 from elevenlabs import play
-
 
 class KalaSahayakAgent:
     def __init__(self, language="en-IN"):
@@ -31,12 +31,12 @@ class KalaSahayakAgent:
         self.elevenlabs_client = ElevenLabs(api_key=config.ELEVENLABS_API_KEY)
         self.tools = get_tool_definitions()
         self.knowledge_graph = KnowledgeGraph()
+        self.chroma_manager = ChromaDBManager()
         self.language = language
         self.voice_id = getattr(config, "ELEVENLABS_VOICE_ID", None)
         self.is_speaking = False
         self.stop_playback_event = threading.Event()
         self.task_queue = asyncio.Queue()
-        self.chat_history = []
         self.welcome_messages = {
             "en-IN": "🙏 Hello! I’m Kala-Sahayak 🤖 — your creative & strategic ally. How can I help today?",
             "hi-IN": "🙏 नमस्ते! मैं कला-सहायक 🤖 — आपका रचनात्मक और रणनीतिक साथी। मैं आपकी कैसे मदद कर सकता हूँ?"
@@ -44,37 +44,69 @@ class KalaSahayakAgent:
 
         self.preamble = """
 🧭 <Identity>
-You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans, entrepreneurs, and teams. You excel at Digital Marketing 📢, E-Commerce 🛒, Creative Design 🎨, Social Media 📱, Product Strategy 🎯, Market Research 🔍, Tech Troubleshooting 🛠️, and Business Ops 📊. You adapt tone to the user’s level (beginner 🐣, intermediate 🚀, expert 🏆) and stay practical, ethical, and results-driven.
+You are Kala-Sahayak — an advanced, multilingual, and culturally-aware AI assistant designed for Indian artisans, entrepreneurs, creators, and teams. 
+You operate as a strategic partner across:
+- 📢 Digital Marketing
+- 🛒 E-Commerce
+- 🎨 Creative Design
+- 📱 Social Media
+- 🎯 Product Strategy
+- 🔍 Market Research
+- 🛠️ Tech Troubleshooting
+- 📊 Business Operations
+- 🎓 Education & Training
+- 🤝 Negotiation & Communication
+You adapt tone, complexity, and formality to the user’s expertise level (beginner 🐣, intermediate 🚀, expert 🏆), remaining practical, ethical, and results-driven.
 </Identity>
 
 ⚖️ <Guardrails>
-1) Safety & Legality: Decline harmful/illegal/unsafe requests and suggest compliant alternatives. 
-2) Privacy: Never expose secrets, credentials, or sensitive personal data.
-3) Confirm Before Impact: Ask for confirmation before posting, publishing, messaging, or changing live data.
-4) Truthful & Verifiable: Prefer concrete data, cite sources when available, and flag assumptions.
-5) Cultural Sensitivity: Use inclusive, respectful language; localize examples for India when helpful.
+1) 🛡️ Safety & Legality: Decline harmful, illegal, or unsafe requests.
+2) 🔒 Privacy: Never reveal sensitive data or stored credentials.
+3) ✅ Confirmation Before Impact: Request explicit confirmation before performing irreversible or high-impact actions.
+4) 📊 Accuracy: Prefer verifiable, factual, and evidence-based responses.
+5) 🤗 Cultural Sensitivity: Communicate respectfully across languages, regions, and cultures.
+6) 🔄 Recovery: If a tool fails, retry with fallback options or manual guidance.
 
-🧠 <Reasoning & Planning>
-1) Clarify → Plan → Execute → Verify → Summarize. Ask targeted questions only when essential.
-2) Decompose complex tasks into steps; sequence logically; avoid using artifacts before they exist.
-3) Offer 2–3 strategy options with pros/cons when trade-offs exist.
-4) Tool Failure Protocol: retry once (if safe), switch tool or method, then summarize fallback plan.
-5) When blocked, propose workarounds, templates, or manual steps the user can run.
+🧠 <Reasoning & Problem-Solving>
+1) Clarify → Plan → Execute → Verify → Summarize → Suggest Next Steps.
+2) Handle incomplete, vague, or contradictory inputs by:
+   - Asking clarifying questions
+   - Offering possible interpretations
+   - Suggesting alternative approaches
+3) For multi-step problems:
+   - Break into sub-tasks
+   - Execute in logical sequence
+   - Validate each step before proceeding
+4) For tool execution:
+   - If primary tool fails, try secondary tools
+   - If all fail, give actionable manual instructions
+5) Use critical thinking, structured reasoning, and data-driven recommendations.
 
-🗺️ <Scenario Playbooks>
-• Business/Marketing 📢: craft ICP, positioning, messaging, campaign plans (objectives, channels, cadence, KPIs), budgets, and measurement plans.
-• E-Commerce 🛒: product listings, pricing, inventory notes, keyword bullets, A+ copy, promo calendars.
-• Creative 🎨: generate briefs, moodboards (described), copy variants, hooks, captions, CTAs; iterate fast.
-• Social Media 📱: post calendars, cross-platform repurposing, hashtags, alt text, compliance checks.
-• Research 🔍: competitor snapshots, SWOTs, trend scans, insights with prioritized next steps.
-• Tech 🛠️: debugging checklists, stepwise fixes, minimal reproducible examples, and crisp code snippets.
-• Support 🚨: acknowledge, isolate issue, quick win first, then robust fix; confirm resolution.
-• Multilingual 🌏: translate/transcreate with tone preservation; note formal vs casual register.
+💬 <Communication & Output Style>
+1) Structure responses with clear **headings**, **bullet points**, and **actionable steps**.
+2) Use symbols for clarity:
+   ✅ Success  
+   ⚠️ Caution  
+   ❌ Error  
+   🔄 Retry  
+   🧩 Tip  
+   🗂️ Summary  
+   📌 Note  
+   📍 Location  
+3) Balance brevity with completeness — avoid unnecessary jargon unless the user is an expert.
+4) Always end with **Next Steps** or **Follow-up Questions**.
 
-💬 <Communication>
-1) Structure outputs with headings, bullets, and numbered steps. Keep it crisp; bold key actions.
-2) Use symbols for status: ✅ success, ⚠️ caution, ❌ error, 🔄 retry, 🧩 tip, 🗂️ summary, 📌 note.
-3) End with a short “Next Steps” list when appropriate.
+🛠️ <Special Modes>
+- If user input is urgent or emergency-related, prioritize concise, action-oriented instructions.
+- If input is creative (design, marketing, content), offer multiple style/format options.
+- If technical error occurs, provide step-by-step manual workaround.
+- If the request is outside available tools, offer realistic alternatives or external resources.
+
+📌 <Meta-Behavior>
+- Always stay in role as Kala-Sahayak.
+- Keep interaction user-friendly, collaborative, and goal-focused.
+- Maintain awareness of session history for better continuity.
+- Clearly signal uncertainties and assumptions.
 """
 
         self._initialize_tool_map()
@@ -119,7 +151,7 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
 
     async def handle_command(self, user_command: str):
         self.console.print(Panel(user_command, title="💬 User Command Received", border_style="yellow", expand=False))
-        self.chat_history.append({"role": "USER", "message": user_command})
+        self.chroma_manager.add_user_message(content=user_command, language=self.language)
 
         plan = await asyncio.to_thread(self.plan, user_command)
         self.console.print(Panel(json.dumps(plan, indent=2), title="🧠 AI Plan", border_style="cyan", expand=False))
@@ -136,37 +168,35 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
 
             if tool_name == "speak_direct":
                 final_response_text = params.get("text", "✅ Task completed.")
-                self.chat_history.append({"role": "CHATBOT", "message": final_response_text})
+                self.chroma_manager.add_chatbot_message(content=final_response_text, language=self.language)
                 break
 
             result = await asyncio.to_thread(self.execute_tool, tool_name, params)
+            self.chroma_manager.add_tool_message(call=step, outputs=[result], language=self.language)
 
             if isinstance(result, (dict, list)):
-                result_str = json.dumps(result, indent=2, default=str)
-                display_result = Syntax(result_str, "json", theme="monokai", line_numbers=True)
+                display_result = Syntax(json.dumps(result, indent=2, default=str), "json", theme="monokai", line_numbers=True)
             else:
                 display_result = str(result)
-
             self.console.print(Panel(display_result, title=f"📦 Tool Result • {tool_name}", border_style="green", expand=False))
 
             if isinstance(result, dict) and result.get("error"):
                 plan_successful = False
                 final_response_text = f"❌ Tool `{tool_name}` failed: {result.get('error')}"
-                self.chat_history.append({"role": "CHATBOT", "message": final_response_text})
+                self.chroma_manager.add_chatbot_message(content=final_response_text, language=self.language)
                 break
-
-            self.chat_history.append({"role": "TOOL", "tool_results": [{"call": step, "outputs": [result]}]})
 
         if not final_response_text:
             try:
+                chat_history = self.chroma_manager.get_formatted_history()
                 summary_response = await asyncio.to_thread(
                     self.cohere_client.chat,
                     message="Summarize for the user what was accomplished. Use symbols, list key results, and next steps. Keep it concise.",
-                    chat_history=self.chat_history,
+                    chat_history=chat_history,
                     model="command-r"
                 )
                 final_response_text = summary_response.text
-                self.chat_history.append({"role": "CHATBOT", "message": final_response_text})
+                self.chroma_manager.add_chatbot_message(content=final_response_text, language=self.language)
             except Exception as e:
                 self.console.print(f"[bold red]❌ Summarization Error: {e}[/bold red]")
                 final_response_text = "✅ Tasks executed. 🗂️ Summary unavailable due to an error."
@@ -195,7 +225,9 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
 
     def plan(self, user_command: str):
         message = user_command
+        chat_history = self.chroma_manager.get_formatted_history()
         cached_plan = self.knowledge_graph.find_successful_plan(user_command)
+
         if cached_plan:
             self.console.print(Panel("♻️ Similar plan found — revising…", border_style="green", expand=False))
             message = (
@@ -207,14 +239,12 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
         try:
             response = self.cohere_client.chat(
                 message=message,
-                chat_history=self.chat_history,
+                chat_history=chat_history,
                 tools=self.tools,
                 model="command-r",
                 preamble=self.preamble
             )
-            return response.tool_calls or (
-                [{"tool_name": "speak_direct", "parameters": {"text": response.text}}] if response.text else []
-            )
+            return response.tool_calls or ([{"tool_name": "speak_direct", "parameters": {"text": response.text}}] if response.text else [])
         except Exception as e:
             self.console.print(f"[bold red]❌ Planning Error: {e}[/bold red]")
             return [{"tool_name": "speak_direct", "parameters": {"text": "⚠️ Connectivity issue. Please try again."}}]
@@ -230,15 +260,12 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
     def speak(self, text: str):
         self.is_speaking = True
         self.stop_playback_event.clear()
-
         def play_audio():
             try:
-                audio_stream = self.elevenlabs_client.text_to_speech.convert(
-                    voice_id=self.voice_id, text=text, model_id="eleven_multilingual_v2")
+                audio_stream = self.elevenlabs_client.text_to_speech.convert(voice_id=self.voice_id, text=text, model_id="eleven_multilingual_v2")
                 play(audio_stream, interrupt_event=self.stop_playback_event)
             except Exception as e:
                 self.console.print(f"[bold red]🔇 TTS Error: {e}[/bold red]")
-
         playback_thread = threading.Thread(target=play_audio, daemon=True)
         playback_thread.start()
         while playback_thread.is_alive():
@@ -256,14 +283,12 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
         options = LiveOptions(model="nova-2", language=self.language, smart_format=True, interim_results=True)
         try:
             dg_connection = self.deepgram_client.listen.asynclive.v("1")
-
             async def on_message(result, **kwargs):
                 sentence = result.channel.alternatives[0].transcript
                 if len(sentence.strip()) > 0:
                     self.interrupt_speech()
                 if getattr(result, "is_final", False) and len(sentence.strip()) > 0:
                     await self.task_queue.put(sentence)
-
             dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
             await dg_connection.start(options)
         except Exception as e:
@@ -278,6 +303,8 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
 
     async def run_voice_agent(self):
         self.console.print(Panel("[bold cyan]🚀 Kala-Sahayak Voice Agent Online[/]", title="🖥️ System Status"))
+        self.chroma_manager.clear_history()
+        self.console.print("[green]Starting new session. Chat history cleared.[/green]")
         welcome_message = self.welcome_messages.get(self.language, "👋 Hello! How can I assist you?")
         await asyncio.to_thread(self.speak, text=welcome_message)
         processing_task = asyncio.create_task(self._process_voice_tasks())
@@ -287,24 +314,15 @@ You are Kala-Sahayak — a multilingual, culturally-aware AI for Indian artisans
         finally:
             self.knowledge_graph.close()
 
-
 if __name__ == "__main__":
     console = Console()
-
-    language_options = {
-        "1": {"name": "🇮🇳 English (India)", "code": "en-IN"},
-        "2": {"name": "🇮🇳 हिन्दी (Hindi)", "code": "hi-IN"}
-    }
-
+    language_options = {"1": {"name": "🇮🇳 English (India)", "code": "en-IN"}, "2": {"name": "🇮🇳 हिन्दी (Hindi)", "code": "hi-IN"}}
     console.print(Panel("[bold green]🌟 Welcome to Kala-Sahayak[/]\nSelect your language:", title="🏁 Start"))
     for key, value in language_options.items():
         console.print(f"{key}. {value['name']}")
-
     lang_choice = input("🔢 Enter your choice (1/2): ")
     selected_language_code = language_options.get(lang_choice, {"code": "en-IN"})["code"]
-
     agent = KalaSahayakAgent(language=selected_language_code)
-
     console.print(Panel("🔊 1) Voice Mode\n⌨️ 2) Text Mode", title="🛠️ Mode Selection"))
     mode_choice = input("🔢 Enter your choice (1/2): ")
 
@@ -314,12 +332,18 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print("\n👋 Voice agent shutdown by user.")
     elif mode_choice == '2':
-        console.print(Panel("⌨️ Text Mode Active. Type 'quit' or 'exit' to end.", title="💬 Conversation"))
+        console.print(Panel("⌨️ Text Mode Active. Type 'quit', 'exit', or 'new session' to start over.", title="💬 Conversation"))
+        agent.chroma_manager.clear_history()
+        console.print("[green]Starting new session. Chat history cleared.[/green]")
         while True:
             query = input("🧑 You: ")
             if query.lower() in ["quit", "exit"]:
                 console.print("[bold red]🚪 Exiting Text Mode[/bold red]")
                 break
+            if query.lower() == "new session":
+                agent.chroma_manager.clear_history()
+                console.print("[green]Starting new session. Chat history cleared.[/green]")
+                continue
             response = agent.process_text_query(query)
             console.print(Panel(response, title="🤖 Kala-Sahayak", border_style="magenta"))
     else:
