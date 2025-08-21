@@ -1,0 +1,12 @@
+python-dotenv
+google-generativeai
+cohere
+sounddevice
+vosk
+elevenlabs
+requests
+rich
+boto3
+requests-aws4auth
+pandas
+neo4j

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:4.4
+    container_name: neo4j_database_for_agent
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    environment:
+      - NEO4J_AUTH=neo4j/932004
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+
+      - NEO4JLABS_PLUGINS=["apoc"]
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:

@@ -1,0 +1,18 @@
+# Virtual Environment
+.venv/
+venv/
+
+# Environment variables
+.env
+
+# Configuration files with secrets
+config.py
+credentials.json
+token.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VS Code settings
+.vscode/
