@@ -1,12 +1,7 @@
 from cohere.types import Tool
-import os
 from typing import List
 
 def get_tool_definitions() -> List[Tool]:
-    """
-    Returns the complete list of tool definitions for the agent,
-    featuring all final, advanced, and resilient tools.
-    """
     return [
         Tool(
             name="monitor_check_for_new_comments",
@@ -38,19 +33,30 @@ def get_tool_definitions() -> List[Tool]:
         ),
         Tool(
             name="design_enhance_product_photo",
-            description="Improves a product photo by removing the background.",
+            description="Improves a real product photograph by automatically removing its background, making it suitable for catalogs and promotional materials.",
             parameter_definitions={
-                "input_path": {"type": "string", "description": "The local file path of the photo to enhance.", "required": True},
-                "save_path": {"type": "string", "description": "The local file path to save the enhanced photo.", "required": True}
+                "input_path": {"type": "string", "description": "The local file path of the product photo to be enhanced.", "required": True},
+                "save_path": {"type": "string", "description": "The local file path where the enhanced photo with the removed background will be saved.", "required": True}
             }
         ),
         Tool(
             name="design_create_promo_video",
-            description="Creates a short promotional video from images and text.",
+            description="Creates a short promotional video by stitching together a series of images with text overlays. This process runs locally.",
             parameter_definitions={
-                "image_paths": {"type": "list[string]", "description": "A list of local file paths for the images.", "required": True},
-                "text_overlays": {"type": "list[string]", "description": "A list of text captions to overlay on each image.", "required": True},
-                "save_path": {"type": "string", "description": "The local file path to save the MP4 video.", "required": True}
+                "image_paths": {"type": "array", "description": "An ordered list of local file paths for the images to be included in the video.", "items": {"type": "string"}, "required": True},
+                "text_overlays": {"type": "array", "description": "A list of text strings to overlay on the corresponding images.", "items": {"type": "string"}, "required": True},
+                "save_path": {"type": "string", "description": "The local file path to save the final MP4 video file.", "required": True},
+                "duration_per_image": {"type": "int", "description": "The number of seconds each image will be displayed in the video. Defaults to 3.", "required": False}
+            }
+        ),
+        Tool(
+            name="design_create_promo_video_with_api",
+            description="Creates a promotional video using a cloud-based API (Shotstack). This is a more robust alternative to the local video creation tool.",
+            parameter_definitions={
+                "image_paths": {"type": "array", "description": "A list of local image file paths. These will be temporarily hosted to be accessible by the API.", "items": {"type": "string"}, "required": True},
+                "text_overlays": {"type": "array", "description": "A list of text captions to overlay on each image.", "items": {"type": "string"}, "required": True},
+                "save_path": {"type": "string", "description": "The local file path to save the final MP4 video file after it's rendered and downloaded.", "required": True},
+                "duration_per_image": {"type": "int", "description": "The duration in seconds for each image clip. Defaults to 3.", "required": False}
             }
         ),
         Tool(
@@ -85,28 +91,32 @@ def get_tool_definitions() -> List[Tool]:
         ),
         Tool(
             name="design_create_poster",
-            description="Generates a new promotional poster from scratch.",
+            description="Generates a new AI-powered promotional poster from a textual description. This is the first step for creating a new visual asset.",
             parameter_definitions={
-                "product_name": {"type": "string", "description": "The name of the product.", "required": True},
-                "description": {"type": "string", "description": "A short marketing description.", "required": True},
-                "call_to_action": {"type": "string", "description": "The call to action text.", "required": True},
-                "save_path": {"type": "string", "description": "The local filename for the poster.", "required": True},
+                "product_name": {"type": "string", "description": "The name of the product to be featured on the poster.", "required": True},
+                "description": {"type": "string", "description": "A short, engaging marketing description of the product.", "required": True},
+                "call_to_action": {"type": "string", "description": "The call to action text (e.g., 'Shop Now', 'Learn More').", "required": True},
+                "save_path": {"type": "string", "description": "The local file path where the generated poster image will be saved (e.g., 'output/poster_v1.png').", "required": True},
+                "target_audience": {"type": "string", "description": "Optional: A brief description of the target audience to tailor the poster's style.", "required": False},
+                "brand_colors": {"type": "array", "description": "Optional: A list of brand colors (e.g., ['#FF5733', 'blue']) to influence the poster's color palette.", "items": {"type": "string"}, "required": False}
             }
         ),
         Tool(
             name="design_update_poster",
-            description="Updates a poster based on user feedback.",
+            description="Updates an existing AI-generated poster based on user feedback to refine the design.",
             parameter_definitions={
-                "product_name": {"type": "string", "description": "The name of the product.", "required": True},
-                "prompt_used": {"type": "string", "description": "The original prompt used for the poster.", "required": True},
-                "user_feedback": {"type": "string", "description": "User recommendations for the update.", "required": True},
-                "new_save_path": {"type": "string", "description": "The new file path for the updated poster.", "required": True}
+                "product_name": {"type": "string", "description": "The name of the product featured on the poster.", "required": True},
+                "prompt_used": {"type": "string", "description": "The exact creative prompt that was used to generate the previous version of the poster.", "required": True},
+                "user_feedback": {"type": "string", "description": "Specific feedback and instructions for how the poster should be changed (e.g., 'Make the background brighter', 'Use a different font').", "required": True},
+                "new_save_path": {"type": "string", "description": "The new local file path to save the updated poster (e.g., 'output/poster_v2.png').", "required": True}
             }
         ),
         Tool(
-            name="display_show_local_image",
-            description="Displays a local image file on the screen.",
-            parameter_definitions={"file_path": {"type": "string", "description": "The path to the image file.", "required": True}}
+            name="design_show_image",
+            description="Displays a local image file on the user's screen using the default image viewer.",
+            parameter_definitions={
+                "file_path": {"type": "string", "description": "The local path to the image file you want to display.", "required": True}
+            }
         ),
         Tool(
             name="system_get_current_directory",
@@ -150,9 +160,58 @@ def get_tool_definitions() -> List[Tool]:
             }
         ),
         Tool(
-            name="data_manager_update_daily_sales",
-            description="Aggregates today's orders into the daily sales summary table. Should be run once at the end of the day.",
+            name="data_manager_add_customer",
+            description="Adds a new customer to the database. If the contact info already exists, it returns the existing customer's ID.",
+            parameter_definitions={
+                "name": {"type": "string", "description": "The full name of the customer.", "required": True},
+                "contact_info": {"type": "string", "description": "The customer's unique contact information, such as an email address.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_create_order_and_shipment",
+            description="Creates a new order with multiple items and a corresponding shipment record for a customer. It automatically decrements product stock.",
+            parameter_definitions={
+                "customer_identifier": {"type": "string", "description": "The ID, name, or contact info of the customer placing the order.", "required": True},
+                "items": {
+                    "type": "array",
+                    "description": "A list of dictionaries, each representing a product in the order.",
+                    "required": True,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "product_id": {"type": "int", "description": "The ID of the product."},
+                            "quantity": {"type": "int", "description": "The number of units sold."},
+                            "price_per_item": {"type": "float", "description": "The price of a single unit."}
+                        },
+                        "required": ["product_id", "quantity", "price_per_item"]
+                    }
+                },
+                "shipping_address": {"type": "string", "description": "The full shipping address for the order.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_get_all_products",
+            description="Retrieves a list of all products available in the database.",
             parameter_definitions={}
+        ),
+        Tool(
+            name="data_manager_get_all_customers",
+            description="Retrieves a list of all customers in the database.",
+            parameter_definitions={}
+        ),
+        Tool(
+            name="data_manager_get_customer_details_and_orders",
+            description="Retrieves full details and the complete order history for a specific customer.",
+            parameter_definitions={
+                "customer_identifier": {"type": "string", "description": "The ID, name, or contact info of the customer to look up.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_update_daily_sales",
+            description="Aggregates orders into the daily sales summary table for a specific date. Defaults to today if no date is provided. Should be run once at the end of the day.",
+            parameter_definitions={
+                "for_date": {"type": "string", "description": "The date to summarize sales for, e.g., 'today', 'yesterday'. Defaults to the current day.", "required": False}
+            }
         ),
         Tool(
             name="data_manager_export_sales_to_csv",
@@ -166,6 +225,36 @@ def get_tool_definitions() -> List[Tool]:
             description="Retrieves a summary of all product sales on a specific date using natural language.",
             parameter_definitions={
                 "date_str": {"type": "string", "description": "The date to query, e.g., 'today', 'yesterday', 'last friday', '2025-08-19'.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_get_product_sales_on_date",
+            description="Retrieves sales data for a specific product on a specific date.",
+            parameter_definitions={
+                "product_name": {"type": "string", "description": "The name of the product to query.", "required": True},
+                "date_str": {"type": "string", "description": "The date to query, e.g., 'today', 'yesterday'.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_get_sales_for_date_range",
+            description="Retrieves all sales data within a specified date range.",
+            parameter_definitions={
+                "start_date_str": {"type": "string", "description": "The start date of the range.", "required": True},
+                "end_date_str": {"type": "string", "description": "The end date of the range.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_get_customers_on_date",
+            description="Retrieves a list of customers who placed an order on a specific date.",
+            parameter_definitions={
+                "date_str": {"type": "string", "description": "The date to check for customer activity.", "required": True}
+            }
+        ),
+        Tool(
+            name="data_manager_get_total_sales_summary_on_date",
+            description="Calculates the grand total revenue and total items sold for a specific date.",
+            parameter_definitions={
+                "date_str": {"type": "string", "description": "The date for which to calculate the sales summary.", "required": True}
             }
         ),
         Tool(
@@ -210,9 +299,9 @@ def get_tool_definitions() -> List[Tool]:
                 "sku": {"type": "string", "description": "The unique Stock Keeping Unit.", "required": True},
                 "product_title": {"type": "string", "description": "The official title for the listing.", "required": True},
                 "description": {"type": "string", "description": "The detailed product description.", "required": True},
-                "bullet_points": {"type": "list[string]", "description": "A list of 5 key feature bullet points.", "required": True},
+                "bullet_points": {"type": "array", "description": "A list of 5 key feature bullet points.", "items": {"type": "string"}, "required": True},
                 "price": {"type": "float", "description": "The selling price.", "required": True},
-                "keywords": {"type": "list[string]", "description": "A list of relevant backend search terms.", "required": True}
+                "keywords": {"type": "array", "description": "A list of relevant backend search terms.", "items": {"type": "string"}, "required": True}
             }
         ),
         Tool(
@@ -254,7 +343,7 @@ def get_tool_definitions() -> List[Tool]:
             description="Posts a carousel of multiple images to Instagram.",
             parameter_definitions={
                 "caption": {"type": "string", "description": "The caption for the carousel.", "required": True},
-                "image_paths": {"type": "list[string]", "description": "A list of local file paths for the images.", "required": True}
+                "image_paths": {"type": "array", "description": "A list of local file paths for the images.", "items": {"type": "string"}, "required": True}
             }
         ),
         Tool(
@@ -325,6 +414,3 @@ def get_tool_definitions() -> List[Tool]:
             }
         )
     ]
-
-def system_get_current_directory():
-    return {"current_directory": os.getcwd()}

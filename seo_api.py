@@ -6,11 +6,11 @@ from rich.console import Console
 import json
 
 class SEOAPI:
-    def __init__(self, model_name="gemini-1.5-pro-latest"):
+    def __init__(self, model_name="gemini-1.5-flash-latest"):
         try:
+            genai.configure(api_key=getattr(config, "GOOGLE_API_KEY", None))
             self.model = genai.GenerativeModel(
-                model_name,
-                api_key=getattr(config, "GOOGLE_API_KEY", None)
+                model_name=model_name
             )
             rprint(Panel.fit("✅ [green]SEOAPI Initialized with Gemini Model[/green]"))
         except Exception as e:
